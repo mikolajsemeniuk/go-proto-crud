@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+package post;
+option go_package = "./post";
+
+message Post {
+    string                    Id       = 1;
+    string                    Title    = 2;
+    int32                     Rate     = 3;
+    bool                      IsDone   = 4;
+    google.protobuf.Timestamp Updated  = 5;
+}
+
+message PostId {
+    string Id = 1;
+}
+
+service PostService {
+    rpc ListPosts  (google.protobuf.Empty)   returns (stream Post);
+    rpc ReadPost   (PostId)                  returns (Post);
+    rpc CreatePost (Post)                    returns (google.protobuf.Empty);
+    rpc UpdatePost (Post)                    returns (google.protobuf.Empty);
+    rpc RemovePost (PostId)                  returns (google.protobuf.Empty);
+}

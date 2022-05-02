@@ -2,65 +2,83 @@ package main
 
 import (
 	"context"
+	"go-proto-crud/post"
+	"go-proto-crud/store"
 	"log"
 	"net"
 	"os"
 
-	"go-proto-crud/blog"
-
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type server struct{}
+type server struct {
+	store store.Store
+}
 
-func (*server) ListBlogs(in *emptypb.Empty, stream blog.BlogService_ListBlogsServer) error {
-
-	blog := &blog.Blog{
-		Id:      "132",
-		Title:   "Blog",
-		Rate:    3,
-		IsDone:  false,
-		Updated: &timestamppb.Timestamp{},
+func (s *server) ListPosts(in *emptypb.Empty, stream post.PostService_ListPostsServer) error {
+	for _, post := range s.store.List() {
+		stream.Send(&post)
 	}
-
-	stream.Send(blog)
-	stream.Send(blog)
-	stream.Send(blog)
-
 	return nil
 }
 
-func (*server) ReadBlog(c context.Context, req *blog.BlogId) (*blog.Blog, error) {
+func (s *server) ReadPost(c context.Context, req *post.PostId) (*post.Post, error) {
 	id := req.GetId()
-
-	if id == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Received empty string for id")
+	_, err := uuid.Parse(id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "id is not a type of uuid")
 	}
 
-	res := &blog.Blog{
-		Id: id,
+	post, err := s.store.Read(id)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
 
-	return res, nil
+	return post, nil
 }
 
-func (*server) CreateBlog(c context.Context, req *blog.Blog) (*emptypb.Empty, error) {
-	return nil, nil
+func (s *server) CreatePost(c context.Context, req *post.Post) (*emptypb.Empty, error) {
+	title := req.GetTitle()
+	if len(title) < 5 || len(title) > 255 {
+		return nil, status.Errorf(codes.InvalidArgument, "title has to be between 5 and 255")
+	}
+
+	rate := req.GetRate()
+	if rate < 1 || rate > 5 {
+		return nil, status.Errorf(codes.InvalidArgument, "rate has to be in range 1 to 5")
+	}
+
+	post := post.Post{
+		Id:      uuid.New().String(),
+		Title:   title,
+		Rate:    rate,
+		IsDone:  false,
+		Updated: nil,
+	}
+
+	err := s.store.Create(post)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error occurred")
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
-func (*server) UpdateBlog(c context.Context, req *blog.Blog) (*emptypb.Empty, error) {
-	return nil, nil
+func (*server) UpdatePost(c context.Context, req *post.Post) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }
 
-func (*server) RemoveBlog(c context.Context, req *blog.BlogId) (*emptypb.Empty, error) {
-	return nil, nil
+func (*server) RemovePost(c context.Context, req *post.PostId) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, nil
 }
 
 func main() {
+	str := store.NewStore()
+
 	connection, err := net.Listen("tcp", "0.0.0.0:50051")
 	if err != nil {
 		log.Println(err)
@@ -68,7 +86,9 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	blog.RegisterBlogServiceServer(s, &server{})
+	post.RegisterPostServiceServer(s, &server{
+		store: str,
+	})
 	log.Println("Server listen on 50051")
 
 	if err := s.Serve(connection); err != nil {
