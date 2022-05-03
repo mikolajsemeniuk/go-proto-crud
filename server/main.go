@@ -68,7 +68,35 @@ func (s *server) CreatePost(c context.Context, req *post.Post) (*emptypb.Empty, 
 	return &emptypb.Empty{}, nil
 }
 
-func (*server) UpdatePost(c context.Context, req *post.Post) (*emptypb.Empty, error) {
+func (s *server) UpdatePost(c context.Context, req *post.Post) (*emptypb.Empty, error) {
+	id := req.GetId()
+	_, err := uuid.Parse(id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "id is not a type of uuid")
+	}
+
+	title := req.GetTitle()
+	if len(title) < 5 || len(title) > 255 {
+		return nil, status.Errorf(codes.InvalidArgument, "title has to be between 5 and 255")
+	}
+
+	rate := req.GetRate()
+	if rate < 1 || rate > 5 {
+		return nil, status.Errorf(codes.InvalidArgument, "rate has to be in range 1 to 5")
+	}
+
+	post := post.Post{
+		Id:     id,
+		Title:  title,
+		Rate:   rate,
+		IsDone: req.GetIsDone(),
+	}
+
+	err = s.store.Update(post)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
 	return &emptypb.Empty{}, nil
 }
 

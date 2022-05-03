@@ -13,6 +13,7 @@ type Store interface {
 	List() []post.Post
 	Read(id string) (*post.Post, error)
 	Create(post post.Post) error
+	Update(post post.Post) error
 	Remove(id string) error
 }
 
@@ -39,6 +40,20 @@ func (s *store) Create(post post.Post) error {
 	defer s.mutex.Unlock()
 	s.posts = append(s.posts, post)
 	return nil
+}
+func (s *store) Update(post post.Post) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for i := range s.posts {
+		if s.posts[i].Id == post.Id {
+			s.posts[i].Title = post.Title
+			s.posts[i].Rate = post.Rate
+			s.posts[i].IsDone = post.IsDone
+			s.posts[i].Updated = timestamppb.Now()
+			return nil
+		}
+	}
+	return fmt.Errorf("post not found")
 }
 
 func (s *store) Remove(id string) error {
