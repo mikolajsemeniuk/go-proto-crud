@@ -16,13 +16,13 @@ type client struct {
 	client post.PostServiceClient
 }
 
-func (c *client) ListPosts() ([]post.Post, error) {
+func (c *client) ListPosts() ([]*post.Post, error) {
 	stream, err := c.client.ListPosts(context.Background(), &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}
 
-	posts := []post.Post{}
+	posts := []*post.Post{}
 	for {
 		post, err := stream.Recv()
 		if err == io.EOF {
@@ -31,7 +31,7 @@ func (c *client) ListPosts() ([]post.Post, error) {
 		if err != nil {
 			return nil, err
 		}
-		posts = append(posts, *post)
+		posts = append(posts, post)
 	}
 	return posts, nil
 }
