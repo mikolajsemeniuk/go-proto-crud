@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"go-proto-crud/post"
 	"sync"
+
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Store interface {
 	List() []post.Post
-	Create(post post.Post) error
 	Read(id string) (*post.Post, error)
+	Create(post post.Post) error
+	Remove(id string) error
 }
 
 type store struct {
@@ -37,8 +41,35 @@ func (s *store) Create(post post.Post) error {
 	return nil
 }
 
+func (s *store) Remove(id string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for i := range s.posts {
+		if s.posts[i].Id == id {
+			s.posts = append(s.posts[:i], s.posts[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("post not found")
+}
+
 func NewStore() *store {
 	return &store{
-		posts: []post.Post{},
+		posts: []post.Post{
+			{
+				Id:      uuid.New().String(),
+				Title:   "new title",
+				Rate:    4,
+				IsDone:  false,
+				Updated: nil,
+			},
+			{
+				Id:      uuid.New().String(),
+				Title:   "new title 2",
+				Rate:    3,
+				IsDone:  true,
+				Updated: timestamppb.Now(),
+			},
+		},
 	}
 }

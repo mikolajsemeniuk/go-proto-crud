@@ -72,7 +72,18 @@ func (*server) UpdatePost(c context.Context, req *post.Post) (*emptypb.Empty, er
 	return &emptypb.Empty{}, nil
 }
 
-func (*server) RemovePost(c context.Context, req *post.PostId) (*emptypb.Empty, error) {
+func (s *server) RemovePost(c context.Context, req *post.PostId) (*emptypb.Empty, error) {
+	id := req.GetId()
+	_, err := uuid.Parse(id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "id is not a type of uuid")
+	}
+
+	err = s.store.Remove(id)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
 	return &emptypb.Empty{}, nil
 }
 
